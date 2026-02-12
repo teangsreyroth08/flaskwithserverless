@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>My Python Homepage</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  </head>
+  <body>
+    <header class="container">
+      <nav class="nav">
+        <div class="brand">MySite</div>
+        <div class="links">
+          <a href="{{ url_for('home') }}#features">Features</a>
+          <a href="{{ url_for('about') }}">About</a>
+          <a class="btn" href="{{ url_for('contact') }}">Contact</a>
+        </div>
+      </nav>
+
+      <section class="hero">
+        <h1>Welcome 👋</h1>
+        <p>This homepage is served by a Python (Flask) app.</p>
+        <div class="cta">
+          <a class="btn" href="#features">See features</a>
+          <a class="btn ghost" href="#about">Learn more</a>
+        </div>
+      </section>
+    </header>
+
+    <main class="container">
+      <section id="features" class="card">
+        <h2>Features</h2>
+        <ul>
+          <li>Fast to set up</li>
+          <li>Easy to customize</li>
+          <li>Python-powered routing</li>
+        </ul>
+      </section>
+
+      <section id="about" class="card">
+        <h2>About</h2>
+        <p>Edit <code>templates/index.html</code> and <code>static/style.css</code> to match your style.</p>
+      </section>
+
+      <section id="contact" class="card">
+        <h2>Contact</h2>
+        <p>Email: <a href="mailto:hello@example.com">hello@example.com</a></p>
+      </section>
+    </main>
+
+    <footer class="container footer">
+      <small>© <span id="year"></span> MySite</small>
+    </footer>
+
+    <script>
+      document.getElementById("year").textContent = new Date().getFullYear();
+    </script>
+  </body>
+</html>

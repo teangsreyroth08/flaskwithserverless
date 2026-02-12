@@ -1,0 +1,173 @@
+- hosts: web
+  become: yes
+
+  vars:
+    app_name: flaskapp
+    app_dir: /opt/flaskapp
+    venv_dir: /opt/flaskapp/venv
+    app_src_dir: /home/roth08/1011/Code/homepageflask
+    gunicorn_bind: 127.0.0.1:8000
+
+  tasks:
+    - name: Detect OS family
+      debug:
+        msg: "OS={{ ansible_facts['distribution'] }} Family={{ ansible_facts['os_family'] }}"
+
+    # -------------------------
+    # Install packages (Ubuntu/Debian)
+    # -------------------------
+    - name: Install packages (RHEL/Amazon Linux)
+      yum:
+        name:
+          - python3
+          - nginx
+        state: present
+      when: ansible_facts['os_family'] == "RedHat"
+
+
+    # -------------------------
+    # Install packages (Amazon Linux / RHEL-like)
+    # -------------------------
+    - name: Install packages (RHEL/Amazon Linux)
+      yum:
+        name:
+          - python3
+          - nginx
+        state: present
+      when: ansible_facts['os_family'] == "RedHat"
+
+    - name: Ensure pip + venv packages (RHEL/Amazon Linux)
+      shell: |
+        python3 -m ensurepip --upgrade || true
+        python3 -m pip install --upgrade pip
+      args:
+        executable: /bin/bash
+      when: ansible_facts['os_family'] == "RedHat"
+
+    # -------------------------
+    # Create app directory
+    # -------------------------
+    - name: Create app directory
+      file:
+        path: "{{ app_dir }}"
+        state: directory
+        mode: "0755"
+
+    # -------------------------
+    # Copy application code
+    # -------------------------
+    - name: Copy app folder to server
+      copy:
+        src: "{{ app_src_dir }}/"
+        dest: "{{ app_dir }}/"
+        force: yes
+
+    # -------------------------
+    # Create virtual environment
+    # -------------------------
+    - name: Create venv
+      command: python3 -m venv "{{ venv_dir }}"
+      args:
+        creates: "{{ venv_dir }}/bin/activate"
+
+    # -------------------------
+    # Install dependencies
+    # -------------------------
+    - name: Install requirements in venv
+      pip:
+        requirements: "{{ app_dir }}/requirements.txt"
+        virtualenv: "{{ venv_dir }}"
+
+    # -------------------------
+    # systemd service (Gunicorn)
+    # -------------------------
+    - name: Create systemd service for gunicorn
+      copy:
+        dest: "/etc/systemd/system/{{ app_name }}.service"
+        mode: "0644"
+        content: |
+          [Unit]
+          Description=Gunicorn service for Flask homepage
+          After=network.target
+
+          [Service]
+          Type=simple
+          WorkingDirectory={{ app_dir }}
+          Environment="PATH={{ venv_dir }}/bin"
+          ExecStart={{ venv_dir }}/bin/gunicorn --bind {{ gunicorn_bind }} application:application
+          Restart=always
+          RestartSec=3
+
+          [Install]
+          WantedBy=multi-user.target
+
+    # -------------------------
+    # Nginx config
+    # -------------------------
+    - name: Create nginx config (Amazon Linux / RedHat)
+      copy:
+        dest: "/etc/nginx/conf.d/{{ app_name }}.conf"
+        mode: "0644"
+        content: |
+          server {
+            listen 80;
+            server_name _;
+
+            location / {
+              proxy_pass http://{{ gunicorn_bind }};
+              proxy_set_header Host $host;
+              proxy_set_header X-Real-IP $remote_addr;
+              proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+              proxy_set_header X-Forwarded-Proto $scheme;
+            }
+          }
+      when: ansible_facts['os_family'] == "RedHat"
+
+    - name: Test nginx configuration
+      command: nginx -t
+
+    - name: Restart nginx
+      systemd:
+        name: nginx
+        state: restarted
+        enabled: yes
+
+
+    # Amazon Linux typically uses conf.d
+    - name: Create nginx config (RHEL/Amazon Linux)
+      copy:
+        dest: "/etc/nginx/conf.d/{{ app_name }}.conf"
+        mode: "0644"
+        content: |
+          server {
+            listen 80;
+            server_name _;
+
+            location / {
+              proxy_pass http://{{ gunicorn_bind }};
+              proxy_set_header Host $host;
+              proxy_set_header X-Real-IP $remote_addr;
+              proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+              proxy_set_header X-Forwarded-Proto $scheme;
+            }
+          }
+      when: ansible_facts['os_family'] == "RedHat"
+
+    # -------------------------
+    # Start / enable services
+    # -------------------------
+    - name: Reload systemd
+      systemd:
+        daemon_reload: yes
+
+    - name: Enable and restart gunicorn service
+      systemd:
+        name: "{{ app_name }}"
+        state: restarted
+        enabled: yes
+
+    - name: Enable and restart nginx
+      systemd:
+        name: nginx
+        state: restarted
+        enabled: yes

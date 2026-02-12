@@ -1,0 +1,114 @@
+- hosts: web
+  become: yes
+  gather_facts: yes
+
+  vars:
+    app_name: flaskapp
+    app_dir: /opt/flaskapp
+    venv_dir: /opt/flaskapp/venv
+
+    # Where your app code is on the *Ansible controller machine*
+    # (same machine you run ansible-playbook from)
+    app_src_dir: /home/roth08/1011/Code/homepageflask
+
+    # Used by nginx.conf + flaskapp.service (keep consistent)
+    gunicorn_bind: 127.0.0.1:8000
+
+  tasks:
+    - name: Show OS info
+      debug:
+        msg: "OS={{ ansible_facts['distribution'] }} Family={{ ansible_facts['os_family'] }}"
+
+    # -------------------------
+    # Packages
+    # -------------------------
+    - name: Install packages (Debian/Ubuntu)
+      apt:
+        update_cache: yes
+        name:
+          - python3
+          - python3-venv
+          - python3-pip
+          - nginx
+        state: present
+      when: ansible_facts['os_family'] == "Debian"
+
+    - name: Install packages (RHEL/Amazon Linux)
+      yum:
+        name:
+          - python3
+          - python3-pip
+          - nginx
+        state: present
+      when: ansible_facts['os_family'] == "RedHat"
+
+    # -------------------------
+    # App directory + code
+    # -------------------------
+    - name: Create app directory
+      file:
+        path: "{{ app_dir }}"
+        state: directory
+        mode: "0755"
+
+    - name: Copy app code to server
+      copy:
+        src: "{{ app_src_dir }}/"
+        dest: "{{ app_dir }}/"
+        force: yes
+
+    # -------------------------
+    # Virtualenv + deps
+    # -------------------------
+    - name: Create venv
+      command: python3 -m venv "{{ venv_dir }}"
+      args:
+        creates: "{{ venv_dir }}/bin/activate"
+
+    - name: Upgrade pip inside venv
+      pip:
+        name: pip
+        state: latest
+        virtualenv: "{{ venv_dir }}"
+
+    - name: Install requirements in venv
+      pip:
+        requirements: "{{ app_dir }}/requirements.txt"
+        virtualenv: "{{ venv_dir }}"
+
+    # -------------------------
+    # systemd service
+    # -------------------------
+    - name: Install systemd service file
+      copy:
+        src: flaskapp.service
+        dest: "/etc/systemd/system/{{ app_name }}.service"
+        mode: "0644"
+
+    - name: Reload systemd
+      systemd:
+        daemon_reload: yes
+
+    - name: Enable and restart gunicorn service
+      systemd:
+        name: "{{ app_name }}"
+        state: restarted
+        enabled: yes
+
+    # -------------------------
+    # Nginx reverse proxy
+    # -------------------------
+    - name: Install nginx config
+      copy:
+        src: nginx.conf
+        dest: "/etc/nginx/conf.d/{{ app_name }}.conf"
+        mode: "0644"
+
+    - name: Test nginx configuration
+      command: nginx -t
+
+    - name: Enable and restart nginx
+      systemd:
+        name: nginx
+        state: restarted
+        enabled: yes
