@@ -1,11 +1,11 @@
 import os
 from flask import Flask, render_template
-from mangum import Mangum
+# from mangum import Mangum
 
 app = Flask(__name__)
 application = app
 
-handler = Mangum(app)
+# handler = Mangum(app)
 
 @app.route("/")
 def home():
@@ -21,7 +21,7 @@ def contact():
 
 @app.route("/health")
 def health():
-    return "OK mg hov jg ", 200
+    return "OK", 200
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
