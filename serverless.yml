@@ -1,1 +1,15 @@
-Hey, create a function AND an API Gateway to trigger it.
+service: flask-serverless
+
+provider:
+  name: aws
+  runtime: python3.12
+  region: us-east-1
+
+functions:
+  api:
+    handler: app.handler
+    events:
+      - httpApi: '*'
+
+plugins:
+  - serverless-python-requirements
