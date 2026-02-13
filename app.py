@@ -1,11 +1,11 @@
 import os
 from flask import Flask, render_template
-
 from mangum import Mangum
-handler = Mangum(app)
 
 app = Flask(__name__)
 application = app
+
+handler = Mangum(app)
 
 @app.route("/")
 def home():
