@@ -26,4 +26,4 @@ plugins:
 
 custom:
   wsgi:
-    app: app.app  # points to app.py and the 'app' variable inside it
+    app: app.app  # points to app.py and the 'app' variable inside itgit 

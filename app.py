@@ -21,7 +21,7 @@ def contact():
 
 @app.route("/health")
 def health():
-    return "OK", 200
+    return "OK mg hov jg ", 200
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
